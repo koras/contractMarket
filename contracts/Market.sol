@@ -41,6 +41,8 @@ contract PublicInterface {
     function transferFrom(address _from, address _to, uint32 _tokenId) public returns (bool);
     function ownerOf(uint32 _tokenId) public view returns (address owner);
     function isUIntPublic() public view returns(bool);// check pause
+    function getRabbitMother( uint32 mother) public view returns(uint32[5]);
+    function getRabbitMotherSumm(uint32 mother) public view returns(uint count);
 }
 
 contract Market  is Whitelist { 
@@ -52,7 +54,11 @@ contract Market  is Whitelist {
     event BunnyBuy(uint32 bunnyId, uint money);  
     event Tournament(address who, uint bank, uint timeLeft, uint timeRange);
     event AddBank(uint bankMoney, uint countInvestor, address lastOwner, uint addTime, uint stepTime);
-    
+
+    event MotherMoney(uint32 motherId, uint32 bunnyId, uint money);
+     
+
+
     bool public pause = false; 
     
     uint stepTimeBank = 50*60; 
@@ -70,6 +76,7 @@ contract Market  is Whitelist {
     uint coefficientTimeStep = 5;
  
     uint public commission = 5;
+    uint public commission_mom = 5;
     uint public percentBank = 10;
 
     // how many times have the bank been increased
@@ -220,12 +227,19 @@ contract Market  is Whitelist {
     function currentPrice(uint32 _bunnyid) public view returns(uint) { 
         uint money = bunnyCost[_bunnyid];
         if (money > 0) {
+            //commission_mom
             uint percOne = money.div(100);
             // commision
+            
             uint commissionMoney = percOne.mul(commission);
             money = money.add(commissionMoney); 
+
+            uint commissionMom = percOne.mul(commission_mom);
+            money = money.add(commissionMom); 
+
             uint percBank = percOne.mul(percentBank);
             money = money.add(percBank); 
+
             return money;
         }
     } 
@@ -286,7 +300,7 @@ contract Market  is Whitelist {
             timeleft = 0;
         } else { 
             can = false; 
-            _tmp = block.timestamp.sub(_tmp);
+            _tmp = _tmp.sub(block.timestamp);
             if (_tmp > 0) {
                 timeleft = _tmp;
             } else {
@@ -325,7 +339,9 @@ contract Market  is Whitelist {
         stopMarket(_bunnyId); 
         checkTimeWin();
         
-        sendMoney(publicContract.ownerOf(_bunnyId), msg.value);
+        sendMoney(publicContract.ownerOf(_bunnyId), lastmoney);
+        
+        sendMoneyMother(_bunnyId, lastmoney);
         
         changeReallyPrice();
 
@@ -335,6 +351,41 @@ contract Market  is Whitelist {
         emit BunnyBuy(_bunnyId, lastmoney);
     } 
      
+    function sendMoneyMother(uint32 _bunnyId, uint256 _money) internal {
+        if (_money > 0) { 
+            uint procentOne = (_money/100); 
+            // commission_mom
+            uint32[5] memory mother;
+            mother = publicContract.getRabbitMother(_bunnyId);
+
+            uint motherCount = publicContract.getRabbitMotherSumm(_bunnyId);
+            if (motherCount > 0) {
+            uint motherMoney = (procentOne*commission_mom).div(motherCount);
+                for (uint m = 0; m < 5; m++) {
+                    if (mother[m] != 0) {
+                        publicContract.ownerOf(mother[m]).transfer(motherMoney);
+                        emit MotherMoney(mother[m], _bunnyId, motherMoney);
+                    }
+                }
+            } 
+        }
+    }
+
+
+    /**
+    * @param _to to whom money is sent
+    * @param _money the amount of money is being distributed at the moment
+     */
+    function sendMoney(address _to, uint256 _money) internal { 
+        if (_money > 0) { 
+            uint procentOne = (_money/100); 
+            _to.transfer(procentOne * (100-(commission+percentBank+commission_mom)));
+            addBank(procentOne*percentBank);
+            ownerMoney.transfer(procentOne*commission);  
+        }
+    }
+
+
 
     function checkTimeWin() internal {
         if (lastSaleTime + stepTimeBank < block.timestamp) {
@@ -366,21 +417,9 @@ contract Market  is Whitelist {
         emit AddBank(bankMoney, added_to_the_bank, lastOwner, block.timestamp, stepTimeBank);
 
     }  
-    
-    /**
-    * @param _to to whom money is sent
-    * @param _money the amount of money is being distributed at the moment
-     */
-    function sendMoney(address _to, uint256 _money) internal { 
-        if (_money > 0) { 
-            uint procentOne = (_money/100); 
-            _to.transfer(procentOne * (100-(commission+percentBank)));
-            addBank(procentOne*percentBank);
-            ownerMoney.transfer(procentOne*commission);  
-        }
-    }
+     
  
-    function ownerOf(uint32 _bunnyId) public  view returns(address)  {
+    function ownerOf(uint32 _bunnyId) public  view returns(address) {
         return publicContract.ownerOf(_bunnyId);
     } 
     
