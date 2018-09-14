@@ -1,4 +1,4 @@
-pragma solidity ^0.4.4;
+pragma solidity ^0.4.23;
 
 import "./Whitelist.sol"; 
 /**
@@ -35,6 +35,8 @@ library SafeMath {
     }
   
 }
+
+
  
 /// @title Interface new rabbits address
 contract PublicInterface { 
@@ -55,49 +57,52 @@ contract Market  is Whitelist {
     event Tournament(address who, uint bank, uint timeLeft, uint timeRange);
     event AddBank(uint bankMoney, uint countInvestor, address lastOwner, uint addTime, uint stepTime);
 
+    event OwnBank(uint bankMoney, uint countInvestor, address lastOwner, uint addTime, uint stepTime);
+
     event MotherMoney(uint32 motherId, uint32 bunnyId, uint money);
      
 
 
     bool public pause = false; 
     
-    uint stepTimeBank = 50*60; 
-    uint stepTimeSale = (stepTimeBank/10)+stepTimeBank;
-
-  //  uint stepTimeBank = 1; 
-  //  uint stepTimeSale = (stepTimeBank/10)+stepTimeBank;
-
-
-    uint minPrice = 0.001 ether;
-    uint reallyPrice = 0.001 ether;
-    uint rangePrice = 2;
-
-    uint minTimeBank = 300;
-    uint coefficientTimeStep = 5;
+    
+    uint public stepTimeSale = 1;
  
+
+    uint public minPrice = 0.0001 ether;
+    uint reallyPrice = 0.0001 ether;
+    uint public rangePrice = 20;
+
+
+    uint public minTimeBank = 12*60*60;
+    uint public maxTimeBank = 13*60*60;
+    uint public currentTimeBank = maxTimeBank;
+    uint public rangeTimeBank = 2;
+
+
+    uint public coefficientTimeStep = 5;
     uint public commission = 5;
     uint public commission_mom = 5;
     uint public percentBank = 10;
 
     // how many times have the bank been increased
  
-    uint added_to_the_bank = 0;
+    uint public added_to_the_bank = 0;
 
-    uint marketCount = 0; 
-    uint numberOfWins = 0;  
-    uint getMoneyCount = 0;
+    uint public marketCount = 0; 
+    uint public numberOfWins = 0;  
+    uint public getMoneyCount = 0;
 
     string public advertising = "Your advertisement here!";
-
-     uint sec = 1;
+ 
     // how many last sales to take into account in the contract before the formation of the price
   //  uint8 middlelast = 20;
      
      
  
     // the last cost of a sold seal
-    uint lastmoney = 0;   
-    uint totalClosedBID = 0;
+    uint public lastmoney = 0;   
+    uint public totalClosedBID = 0;
 
     // how many a bunny
     mapping (uint32 => uint) public bunnyCost;
@@ -105,68 +110,52 @@ contract Market  is Whitelist {
 
     
     address public lastOwner;
-    uint bankMoney;
-    uint lastSaleTime;
+    uint public bankMoney;
+    uint public lastSaleTime;
 
     address public pubAddress;
     PublicInterface publicContract; 
 
 
-    /**
-    * For convenience in the client interface
-     */
-    function getProperty() public view 
-    returns(
-            uint tmp_stepTimeBank,
-            uint tmp_stepTimeSale,
-            uint tmp_minPrice,
-            uint tmp_reallyPrice,
-          //  uint tmp_rangePrice,
-          //  uint tmp_commission,
-          //  uint tmp_percentBank,
-            uint tmp_added_to_the_bank,
-            uint tmp_marketCount, 
-            uint tmp_numberOfWins,
-            uint tmp_getMoneyCount,
-            uint tmp_lastmoney,   
-            uint tmp_totalClosedBID,
-            uint tmp_bankMoney,
-            uint tmp_lastSaleTime
-            )
-            {
-                tmp_stepTimeBank = stepTimeBank;
-                tmp_stepTimeSale = stepTimeSale;
-                tmp_minPrice = minPrice;
-                tmp_reallyPrice = reallyPrice;
-              //  tmp_rangePrice = rangePrice;
-             //   tmp_commission = commission;
-             //   tmp_percentBank = percentBank;
-                tmp_added_to_the_bank = added_to_the_bank;
-                tmp_marketCount = marketCount; 
-                tmp_numberOfWins = numberOfWins;
-                tmp_getMoneyCount = getMoneyCount;
+ 
 
-                tmp_lastmoney = lastmoney;   
-                tmp_totalClosedBID = totalClosedBID;
-                tmp_bankMoney = bankMoney;
-                tmp_lastSaleTime = lastSaleTime;
-    }
-
-
-    constructor() public {
-        // 0xc7984712b3d0fac8e965dd17a995db5007fe08f2
-       //  transferContract(0xca4455A4Fd80f43bD3efCDE2B84C1e069975e222);
-        transferContract(0xc7984712B3d0FAC8e965DD17a995db5007fE08F2);
+    constructor() public { 
+        transferContract(0x35Ea9df0B7E2E450B1D129a6F81276103b84F3dC);
     }
 
     function setRangePrice(uint _rangePrice) public onlyWhitelisted {
         require(_rangePrice > 0);
         rangePrice = _rangePrice;
     }
+
+    function setReallyPrice(uint _reallyPrice) public onlyWhitelisted {
+        require(_reallyPrice > 0);
+        reallyPrice = _reallyPrice;
+    }
+
+ 
+
+
+    function setStepTimeSale(uint _stepTimeSale) public onlyWhitelisted {
+        require(_stepTimeSale > 0);
+        stepTimeSale = _stepTimeSale;
+    }
+
+    function setRangeTimeBank(uint _rangeTimeBank) public onlyWhitelisted {
+        require(_rangeTimeBank > 0);
+        rangeTimeBank = _rangeTimeBank;
+    }
+
     // minimum time step
     function setMinTimeBank(uint _minTimeBank) public onlyWhitelisted {
         require(_minTimeBank > 0);
         minTimeBank = _minTimeBank;
+    }
+
+    // minimum time step
+    function setMaxTimeBank(uint _maxTimeBank) public onlyWhitelisted {
+        require(_maxTimeBank > 0);
+        maxTimeBank = _maxTimeBank;
     }
 
     // time increment change rate
@@ -190,18 +179,33 @@ contract Market  is Whitelist {
     * @dev change min price a bunny
      */
     function setMinPrice(uint _minPrice) public onlyWhitelisted {
-        require(_minPrice > (10**15));
+        require(_minPrice > 0);
         minPrice = _minPrice;
         
     }
 
-    function setStepTime(uint _stepTimeBank) public onlyWhitelisted {
-        require(_stepTimeBank > 0);
-        stepTimeBank = _stepTimeBank;
-        stepTimeSale = (stepTimeBank/10)+stepTimeBank;
+    function setCurrentTimeBank(uint _currentTimeBank) public onlyWhitelisted {
+        require(_currentTimeBank > 0);
+        currentTimeBank = _currentTimeBank;
     }
  
  
+    /**
+    * @dev We are selling rabbit for sale
+    * @param _bunnyId - whose rabbit we exhibit 
+    * @param _money - sale amount 
+    */
+  function startMarketOwner(uint32 _bunnyId, uint _money) public  onlyWhitelisted {
+        require(checkContract());
+        require(isPauseSave());
+        require(currentPrice(_bunnyId) != _money);
+         
+        bunnyCost[_bunnyId] = _money;
+        timeCost[_bunnyId] = block.timestamp;
+
+        emit StartMarket(_bunnyId, currentPrice(_bunnyId), block.timestamp, stepTimeSale);
+        marketCount++;
+    }
  
     /**
     * @dev Allows the current owner to transfer control of the contract to a newOwner.
@@ -244,21 +248,27 @@ contract Market  is Whitelist {
         }
     } 
 
+    function getReallyPrice() public onlyWhitelisted view returns (uint) {
+        return reallyPrice;
+    }
+
     /**
     * @dev We are selling rabbit for sale
     * @param _bunnyId - whose rabbit we exhibit 
     * @param _money - sale amount 
     */
-  function startMarket(uint32 _bunnyId, uint _money) public returns (uint) {
+  function startMarket(uint32 _bunnyId, uint _money) public{
         require(checkContract());
         require(isPauseSave());
+        require(currentPrice(_bunnyId) != _money);
         require(_money >= reallyPrice);
+
         require(publicContract.ownerOf(_bunnyId) == msg.sender);
         bunnyCost[_bunnyId] = _money;
         timeCost[_bunnyId] = block.timestamp;
         
         emit StartMarket(_bunnyId, currentPrice(_bunnyId), block.timestamp, stepTimeSale);
-        return marketCount++;
+        marketCount++;
     }
 
     /**
@@ -273,25 +283,6 @@ contract Market  is Whitelist {
         emit StopMarket(_bunnyId);
         return marketCount--;
     }
- 
- 
-    function changeReallyPrice() internal {
-        if (added_to_the_bank > 0 && rangePrice > 0) {
-            uint tmp = added_to_the_bank.div(rangePrice);
-            reallyPrice = tmp * (10**15)+reallyPrice; 
-
-
-            uint tmpTime = added_to_the_bank.div(coefficientTimeStep);
-            if (tmpTime <= minTimeBank) {
-                stepTimeBank = minTimeBank;
-            } else {
-                stepTimeBank = tmpTime;
-            }
-        } 
-    }
- 
-     
-
 
     function timeBunny(uint32 _bunnyId) public view returns(bool can, uint timeleft) {
         uint _tmp = timeCost[_bunnyId].add(stepTimeSale);
@@ -334,40 +325,64 @@ contract Market  is Whitelist {
         totalClosedBID++;
         // Sending money to the old user 
         // is sent to the new owner of the bought rabbit
-        publicContract.transferFrom(publicContract.ownerOf(_bunnyId), msg.sender, _bunnyId); 
-
-        stopMarket(_bunnyId); 
+ 
         checkTimeWin();
         
         sendMoney(publicContract.ownerOf(_bunnyId), lastmoney);
         
-        sendMoneyMother(_bunnyId, lastmoney);
-        
+        publicContract.transferFrom(publicContract.ownerOf(_bunnyId), msg.sender, _bunnyId); 
+        sendMoneyMother(_bunnyId);
+        stopMarket(_bunnyId);
         changeReallyPrice();
-
+        changeReallyTime();
         lastOwner = msg.sender; 
         lastSaleTime = block.timestamp; 
-
+        emit OwnBank(bankMoney, added_to_the_bank, lastOwner, lastSaleTime, currentTimeBank);
         emit BunnyBuy(_bunnyId, lastmoney);
-    } 
+    }  
+
+    
+    function changeReallyTime() internal {
+        if (rangeTimeBank > 0) {
+            uint tmp = added_to_the_bank.div(rangeTimeBank);
+            tmp = maxTimeBank.sub(tmp);
+
+            if (currentTimeBank > minTimeBank) { 
+                currentTimeBank = tmp;
+            }
+        } 
+    }
+ 
+    function changeReallyPrice() internal {
+        if (added_to_the_bank > 0 && rangePrice > 0) {
+            uint tmp = added_to_the_bank.div(rangePrice);
+            reallyPrice = minPrice.mul(tmp);  
+        } 
+    }
+ 
+   // uint public minTimeBank = 12*60*60;
+  //  uint public maxTimeBank = 13*60*60;
+   // uint public currentTimeBank = 13*60*60;
+
+
+
      
-    function sendMoneyMother(uint32 _bunnyId, uint256 _money) internal {
-        if (_money > 0) { 
-            uint procentOne = (_money/100); 
+    function sendMoneyMother(uint32 _bunnyId) internal {
+        if (bunnyCost[_bunnyId] > 0) { 
+            uint procentOne = (bunnyCost[_bunnyId].div(100)); 
             // commission_mom
             uint32[5] memory mother;
             mother = publicContract.getRabbitMother(_bunnyId);
-
             uint motherCount = publicContract.getRabbitMotherSumm(_bunnyId);
             if (motherCount > 0) {
-            uint motherMoney = (procentOne*commission_mom).div(motherCount);
-                for (uint m = 0; m < 5; m++) {
-                    if (mother[m] != 0) {
-                        publicContract.ownerOf(mother[m]).transfer(motherMoney);
-                        emit MotherMoney(mother[m], _bunnyId, motherMoney);
+                uint motherMoney = (procentOne*commission_mom).div(motherCount);
+                    for (uint m = 0; m < 5; m++) {
+                        if (mother[m] != 0) {
+                            publicContract.ownerOf(mother[m]).transfer(motherMoney);
+                            emit MotherMoney(mother[m], _bunnyId, motherMoney);
+                        }
                     }
-                }
-            } 
+                } 
         }
     }
 
@@ -388,11 +403,13 @@ contract Market  is Whitelist {
 
 
     function checkTimeWin() internal {
-        if (lastSaleTime + stepTimeBank < block.timestamp) {
+        if (lastSaleTime + currentTimeBank < block.timestamp) {
             win(); 
         }
         lastSaleTime = block.timestamp;
     }
+
+    
     function win() internal {
         // ####### WIN ##############
         // send money
@@ -400,6 +417,8 @@ contract Market  is Whitelist {
             advertising = "";
             added_to_the_bank = 0;
             reallyPrice = minPrice;
+            currentTimeBank = maxTimeBank;
+
             lastOwner.transfer(bankMoney);
             numberOfWins = numberOfWins.add(1); 
             emit Tournament (lastOwner, bankMoney, lastSaleTime, block.timestamp);
@@ -413,10 +432,8 @@ contract Market  is Whitelist {
     function addBank(uint _money) internal { 
         bankMoney = bankMoney.add(_money);
         added_to_the_bank = added_to_the_bank.add(1);
-
-        emit AddBank(bankMoney, added_to_the_bank, lastOwner, block.timestamp, stepTimeBank);
-
-    }  
+        emit AddBank(bankMoney, added_to_the_bank, lastOwner, block.timestamp, currentTimeBank);
+    }
      
  
     function ownerOf(uint32 _bunnyId) public  view returns(address) {
@@ -447,10 +464,45 @@ contract Market  is Whitelist {
     /**
     * Only unforeseen situations
      */
-    function getMoney(uint _value) public onlyOwner {
+    function getMoney(uint _value) public onlyWhitelisted {
         require(address(this).balance >= _value); 
         ownerMoney.transfer(_value);
         // for public, no scam
         getMoneyCount = getMoneyCount.add(_value);
     }
+    /**
+    * For convenience in the client interface
+     */
+    function getProperty() public view 
+    returns(
+            uint tmp_currentTimeBank,
+            uint tmp_stepTimeSale,
+            uint tmp_minPrice,
+            uint tmp_reallyPrice,
+            
+            uint tmp_added_to_the_bank,
+            uint tmp_marketCount, 
+            uint tmp_numberOfWins,
+            uint tmp_getMoneyCount,
+            uint tmp_lastmoney,   
+            uint tmp_totalClosedBID,
+            uint tmp_bankMoney,
+            uint tmp_lastSaleTime
+            )
+            {
+                tmp_currentTimeBank = currentTimeBank;
+                tmp_stepTimeSale = stepTimeSale;
+                tmp_minPrice = minPrice;
+                tmp_reallyPrice = reallyPrice;
+                tmp_added_to_the_bank = added_to_the_bank;
+                tmp_marketCount = marketCount; 
+                tmp_numberOfWins = numberOfWins;
+                tmp_getMoneyCount = getMoneyCount;
+
+                tmp_lastmoney = lastmoney;   
+                tmp_totalClosedBID = totalClosedBID;
+                tmp_bankMoney = bankMoney;
+                tmp_lastSaleTime = lastSaleTime;
+    }
+
 }

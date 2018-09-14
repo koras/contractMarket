@@ -1,4 +1,4 @@
-pragma solidity ^0.4.4;
+pragma solidity ^0.4.23;
  
 import "./Ownable.sol";
 
@@ -10,7 +10,6 @@ import "./Ownable.sol";
  */
 contract Whitelist is Ownable {
     mapping(address => bool) public whitelist;
-
     event WhitelistedAddressAdded(address addr);
     event WhitelistedAddressRemoved(address addr);
  
